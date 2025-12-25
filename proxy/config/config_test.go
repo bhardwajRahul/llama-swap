@@ -253,6 +253,7 @@ macros:
 			config: `
 models:
   model1:
+    cmd: noop
     macros:
       PORT: 1111
 `,
@@ -264,6 +265,7 @@ models:
 			config: `
 models:
   model1:
+    cmd: noop
     macros:
       MODEL_ID: model1
 `,

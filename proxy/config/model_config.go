@@ -7,10 +7,13 @@ import (
 	"strings"
 )
 
+const DEFAULT_MODEL_PROXY = "http://localhost:${PORT}"
+
 type ModelConfig struct {
 	Cmd           string   `yaml:"cmd"`
 	CmdStop       string   `yaml:"cmdStop"`
 	Proxy         string   `yaml:"proxy"`
+	ApiKey        string   `yaml:"apiKey"`
 	Aliases       []string `yaml:"aliases"`
 	Env           []string `yaml:"env"`
 	CheckEndpoint string   `yaml:"checkEndpoint"`
@@ -45,7 +48,7 @@ func (m *ModelConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	defaults := rawModelConfig{
 		Cmd:              "",
 		CmdStop:          "",
-		Proxy:            "http://localhost:${PORT}",
+		Proxy:            DEFAULT_MODEL_PROXY,
 		Aliases:          []string{},
 		Env:              []string{},
 		CheckEndpoint:    "/health",
@@ -64,6 +67,10 @@ func (m *ModelConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	if err := unmarshal(&defaults); err != nil {
 		return err
+	}
+
+	if defaults.Cmd == "" && defaults.Proxy == DEFAULT_MODEL_PROXY {
+		return errors.New("model config must define a 'cmd' when proxy is the default value")
 	}
 
 	*m = ModelConfig(defaults)
