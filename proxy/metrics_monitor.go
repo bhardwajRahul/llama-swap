@@ -90,13 +90,14 @@ func (mp *metricsMonitor) getMetricsJSON() ([]byte, error) {
 // if wrapHandler returns an error it is safe to assume that no
 // data was sent to the client
 func (mp *metricsMonitor) wrapHandler(
-	modelID string,
+	realModelName string,
+	requestedModelName string, /* could be an alias */
 	writer gin.ResponseWriter,
 	request *http.Request,
 	next func(modelID string, w http.ResponseWriter, r *http.Request) error,
 ) error {
 	recorder := newBodyCopier(writer)
-	if err := next(modelID, recorder, request); err != nil {
+	if err := next(realModelName, recorder, request); err != nil {
 		return err
 	}
 
@@ -115,7 +116,7 @@ func (mp *metricsMonitor) wrapHandler(
 	}
 
 	if strings.Contains(recorder.Header().Get("Content-Type"), "text/event-stream") {
-		if tm, err := processStreamingResponse(modelID, recorder.StartTime(), body); err != nil {
+		if tm, err := processStreamingResponse(requestedModelName, recorder.StartTime(), body); err != nil {
 			mp.logger.Warnf("error processing streaming response: %v, path=%s", err, request.URL.Path)
 		} else {
 			mp.addMetrics(tm)
@@ -127,13 +128,12 @@ func (mp *metricsMonitor) wrapHandler(
 			timings := parsed.Get("timings")
 
 			if usage.Exists() || timings.Exists() {
-				if tm, err := parseMetrics(modelID, recorder.StartTime(), usage, timings); err != nil {
+				if tm, err := parseMetrics(requestedModelName, recorder.StartTime(), usage, timings); err != nil {
 					mp.logger.Warnf("error parsing metrics: %v, path=%s", err, request.URL.Path)
 				} else {
 					mp.addMetrics(tm)
 				}
 			}
-
 		} else {
 			mp.logger.Warnf("metrics skipped, invalid JSON in response body path=%s", request.URL.Path)
 		}

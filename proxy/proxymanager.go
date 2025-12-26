@@ -517,7 +517,7 @@ func (pm *ProxyManager) findModelInPath(path string) (searchName string, realNam
 func (pm *ProxyManager) proxyToUpstream(c *gin.Context) {
 	upstreamPath := c.Param("upstreamPath")
 
-	searchModelName, modelName, remainingPath, modelFound := pm.findModelInPath(upstreamPath)
+	searchModelName, realModelName, remainingPath, modelFound := pm.findModelInPath(upstreamPath)
 
 	if !modelFound {
 		pm.sendErrorResponse(c, http.StatusBadRequest, "model id required in path")
@@ -542,7 +542,12 @@ func (pm *ProxyManager) proxyToUpstream(c *gin.Context) {
 		return
 	}
 
-	processGroup, realModelName, err := pm.swapProcessGroup(modelName)
+	if mconfig, found := pm.config.Models[realModelName]; found && mconfig.IsRemoteModel() {
+		pm.sendErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("could not load UI for remote model: %s", searchModelName))
+		return
+	}
+
+	processGroup, _, err := pm.swapProcessGroup(realModelName)
 	if err != nil {
 		pm.sendErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("error swapping process group: %s", err.Error()))
 		return
@@ -554,7 +559,7 @@ func (pm *ProxyManager) proxyToUpstream(c *gin.Context) {
 
 	// attempt to record metrics if it is a POST request
 	if pm.metricsMonitor != nil && c.Request.Method == "POST" {
-		if err := pm.metricsMonitor.wrapHandler(realModelName, c.Writer, c.Request, processGroup.ProxyRequest); err != nil {
+		if err := pm.metricsMonitor.wrapHandler(realModelName, searchModelName, c.Writer, c.Request, processGroup.ProxyRequest); err != nil {
 			pm.sendErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("error proxying metrics wrapped request: %s", err.Error()))
 			pm.proxyLogger.Errorf("Error proxying wrapped upstream request for model %s, path=%s", realModelName, originalPath)
 			return
@@ -632,7 +637,7 @@ func (pm *ProxyManager) proxyInferenceHandler(c *gin.Context) {
 	c.Request = c.Request.WithContext(ctx)
 
 	if pm.metricsMonitor != nil && c.Request.Method == "POST" {
-		if err := pm.metricsMonitor.wrapHandler(realModelName, c.Writer, c.Request, processGroup.ProxyRequest); err != nil {
+		if err := pm.metricsMonitor.wrapHandler(realModelName, requestedModel, c.Writer, c.Request, processGroup.ProxyRequest); err != nil {
 			pm.sendErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("error proxying metrics wrapped request: %s", err.Error()))
 			pm.proxyLogger.Errorf("Error Proxying Metrics Wrapped Request for processGroup %s and model %s", processGroup.id, realModelName)
 			return
