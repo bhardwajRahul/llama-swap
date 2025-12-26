@@ -52,6 +52,47 @@ models:
 	}
 }
 
+func TestConfig_IsRemoteModel(t *testing.T) {
+	tests := []struct {
+		name     string
+		cmd      string
+		proxy    string
+		expected bool
+	}{
+		// Local models (have cmd)
+		{"local model with cmd", "python server.py", "http://localhost:8080", false},
+		{"local model with cmd and remote proxy", "python server.py", "http://example.com:8080", false},
+
+		// Remote models (no cmd, non-loopback proxy)
+		{"remote model", "", "http://example.com:8080", true},
+		{"remote model https", "", "https://api.openai.com/v1", true},
+		{"remote model with port", "", "http://192.168.1.100:8080", true},
+		{"remote model ipv6", "", "http://[2001:db8::1]:8080", true},
+
+		// Loopback addresses (not remote)
+		{"localhost", "", "http://localhost:8080", false},
+		{"localhost no port", "", "http://localhost", false},
+		{"127.0.0.1", "", "http://127.0.0.1:8080", false},
+		{"127.0.0.2 (loopback range)", "", "http://127.0.0.2:8080", false},
+		{"127.255.255.255 (loopback range)", "", "http://127.255.255.255:8080", false},
+		{"ipv6 loopback", "", "http://[::1]:8080", false},
+
+		// Edge cases
+		{"invalid url", "", "not-a-url", true}, // url.Parse succeeds, hostname is "not-a-url", not IP, not localhost
+		{"empty proxy", "", "", true},          // url.Parse succeeds with empty string
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := ModelConfig{
+				Cmd:   tt.cmd,
+				Proxy: tt.proxy,
+			}
+			assert.Equal(t, tt.expected, m.IsRemoteModel())
+		})
+	}
+}
+
 func TestConfig_ModelSendLoadingState(t *testing.T) {
 	content := `
 sendLoadingState: true
