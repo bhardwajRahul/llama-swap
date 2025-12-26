@@ -185,7 +185,7 @@ func TestMetricsMonitor_WrapHandler(t *testing.T) {
 		rec := httptest.NewRecorder()
 		ginCtx, _ := gin.CreateTestContext(rec)
 
-		err := mm.wrapHandler("test-model", ginCtx.Writer, req, nextHandler)
+		err := mm.wrapHandler("test-model", "test-model", ginCtx.Writer, req, nextHandler)
 		assert.NoError(t, err)
 
 		metrics := mm.getMetrics()
@@ -221,7 +221,7 @@ func TestMetricsMonitor_WrapHandler(t *testing.T) {
 		rec := httptest.NewRecorder()
 		ginCtx, _ := gin.CreateTestContext(rec)
 
-		err := mm.wrapHandler("test-model", ginCtx.Writer, req, nextHandler)
+		err := mm.wrapHandler("test-model", "test-model", ginCtx.Writer, req, nextHandler)
 		assert.NoError(t, err)
 
 		metrics := mm.getMetrics()
@@ -260,7 +260,7 @@ data: [DONE]
 		rec := httptest.NewRecorder()
 		ginCtx, _ := gin.CreateTestContext(rec)
 
-		err := mm.wrapHandler("test-model", ginCtx.Writer, req, nextHandler)
+		err := mm.wrapHandler("test-model", "test-model", ginCtx.Writer, req, nextHandler)
 		assert.NoError(t, err)
 
 		metrics := mm.getMetrics()
@@ -284,7 +284,7 @@ data: [DONE]
 		rec := httptest.NewRecorder()
 		ginCtx, _ := gin.CreateTestContext(rec)
 
-		err := mm.wrapHandler("test-model", ginCtx.Writer, req, nextHandler)
+		err := mm.wrapHandler("test-model", "test-model", ginCtx.Writer, req, nextHandler)
 		assert.NoError(t, err)
 
 		metrics := mm.getMetrics()
@@ -303,7 +303,7 @@ data: [DONE]
 		rec := httptest.NewRecorder()
 		ginCtx, _ := gin.CreateTestContext(rec)
 
-		err := mm.wrapHandler("test-model", ginCtx.Writer, req, nextHandler)
+		err := mm.wrapHandler("test-model", "test-model", ginCtx.Writer, req, nextHandler)
 		assert.NoError(t, err)
 
 		metrics := mm.getMetrics()
@@ -324,7 +324,7 @@ data: [DONE]
 		rec := httptest.NewRecorder()
 		ginCtx, _ := gin.CreateTestContext(rec)
 
-		err := mm.wrapHandler("test-model", ginCtx.Writer, req, nextHandler)
+		err := mm.wrapHandler("test-model", "test-model", ginCtx.Writer, req, nextHandler)
 		assert.NoError(t, err) // Errors after response is sent are logged, not returned
 
 		metrics := mm.getMetrics()
@@ -343,7 +343,7 @@ data: [DONE]
 		rec := httptest.NewRecorder()
 		ginCtx, _ := gin.CreateTestContext(rec)
 
-		err := mm.wrapHandler("test-model", ginCtx.Writer, req, nextHandler)
+		err := mm.wrapHandler("test-model", "test-model", ginCtx.Writer, req, nextHandler)
 		assert.Equal(t, expectedErr, err)
 
 		metrics := mm.getMetrics()
@@ -366,7 +366,7 @@ data: [DONE]
 		rec := httptest.NewRecorder()
 		ginCtx, _ := gin.CreateTestContext(rec)
 
-		err := mm.wrapHandler("test-model", ginCtx.Writer, req, nextHandler)
+		err := mm.wrapHandler("test-model", "test-model", ginCtx.Writer, req, nextHandler)
 		assert.NoError(t, err) // Errors after response is sent are logged, not returned
 
 		metrics := mm.getMetrics()
@@ -519,7 +519,7 @@ func TestMetricsMonitor_ParseMetrics(t *testing.T) {
 		rec := httptest.NewRecorder()
 		ginCtx, _ := gin.CreateTestContext(rec)
 
-		err := mm.wrapHandler("test-model", ginCtx.Writer, req, nextHandler)
+		err := mm.wrapHandler("test-model", "test-model", ginCtx.Writer, req, nextHandler)
 		assert.NoError(t, err)
 
 		metrics := mm.getMetrics()
@@ -554,7 +554,7 @@ func TestMetricsMonitor_ParseMetrics(t *testing.T) {
 		rec := httptest.NewRecorder()
 		ginCtx, _ := gin.CreateTestContext(rec)
 
-		err := mm.wrapHandler("test-model", ginCtx.Writer, req, nextHandler)
+		err := mm.wrapHandler("test-model", "test-model", ginCtx.Writer, req, nextHandler)
 		assert.NoError(t, err)
 
 		metrics := mm.getMetrics()
@@ -589,7 +589,7 @@ data: [DONE]
 		rec := httptest.NewRecorder()
 		ginCtx, _ := gin.CreateTestContext(rec)
 
-		err := mm.wrapHandler("test-model", ginCtx.Writer, req, nextHandler)
+		err := mm.wrapHandler("test-model", "test-model", ginCtx.Writer, req, nextHandler)
 		assert.NoError(t, err)
 
 		metrics := mm.getMetrics()
@@ -618,7 +618,7 @@ data: [DONE]
 		rec := httptest.NewRecorder()
 		ginCtx, _ := gin.CreateTestContext(rec)
 
-		err := mm.wrapHandler("test-model", ginCtx.Writer, req, nextHandler)
+		err := mm.wrapHandler("test-model", "test-model", ginCtx.Writer, req, nextHandler)
 		assert.NoError(t, err) // Errors after response is sent are logged, not returned
 
 		metrics := mm.getMetrics()
@@ -641,7 +641,7 @@ data: [DONE]
 		rec := httptest.NewRecorder()
 		ginCtx, _ := gin.CreateTestContext(rec)
 
-		err := mm.wrapHandler("test-model", ginCtx.Writer, req, nextHandler)
+		err := mm.wrapHandler("test-model", "test-model", ginCtx.Writer, req, nextHandler)
 		// Empty body should not trigger WrapHandler processing
 		assert.NoError(t, err)
 
