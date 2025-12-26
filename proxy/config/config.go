@@ -15,6 +15,7 @@ import (
 )
 
 const DEFAULT_GROUP_ID = "(default)"
+const DEFAULT_REMOTE_GROUP_ID = "(default-remote)"
 const (
 	LogToStdoutProxy    = "proxy"
 	LogToStdoutUpstream = "upstream"
@@ -447,35 +448,61 @@ func AddDefaultGroupToConfig(config Config) Config {
 		Exclusive: true,
 		Members:   []string{},
 	}
-	// if groups is empty, create a default group and put
-	// all models into it
-	if len(config.Groups) == 0 {
-		for modelName := range config.Models {
-			defaultGroup.Members = append(defaultGroup.Members, modelName)
-		}
-	} else {
-		// iterate over existing group members and add non-grouped models into the default group
-		for modelName := range config.Models {
-			foundModel := false
-		found:
-			// search for the model in existing groups
-			for _, groupConfig := range config.Groups {
-				for _, member := range groupConfig.Members {
-					if member == modelName {
-						foundModel = true
-						break found
-					}
+
+	defaultRemoteGroup := GroupConfig{
+		Swap:       false,
+		Exclusive:  false,
+		Persistent: true,
+		Members:    []string{}, // will be populated below
+	}
+
+	// iterate over models and add non-grouped models into the default group
+	// also move remote models from existing groups to the default remote group
+	for modelName, modelConfig := range config.Models {
+		foundModel := false
+		foundInGroupID := ""
+	found:
+		// search for the model in existing groups
+		for groupID, groupConfig := range config.Groups {
+			for _, member := range groupConfig.Members {
+				if member == modelName {
+					foundModel = true
+					foundInGroupID = groupID
+					break found
 				}
 			}
+		}
 
-			if !foundModel {
+		if !foundModel {
+			// model not in any group, add to appropriate default group
+			if modelConfig.IsRemoteModel() {
+				defaultRemoteGroup.Members = append(defaultRemoteGroup.Members, modelName)
+			} else {
 				defaultGroup.Members = append(defaultGroup.Members, modelName)
 			}
+		} else if modelConfig.IsRemoteModel() {
+			// model is in a group but is a remote model - move it to default remote group
+			groupConfig := config.Groups[foundInGroupID]
+			newMembers := make([]string, 0, len(groupConfig.Members)-1)
+			for _, member := range groupConfig.Members {
+				if member != modelName {
+					newMembers = append(newMembers, member)
+				}
+			}
+			groupConfig.Members = newMembers
+			config.Groups[foundInGroupID] = groupConfig
+			defaultRemoteGroup.Members = append(defaultRemoteGroup.Members, modelName)
 		}
 	}
 
 	sort.Strings(defaultGroup.Members) // make consistent ordering for testing
 	config.Groups[DEFAULT_GROUP_ID] = defaultGroup
+
+	// only add remote group if there are remote models
+	if len(defaultRemoteGroup.Members) > 0 {
+		sort.Strings(defaultRemoteGroup.Members)
+		config.Groups[DEFAULT_REMOTE_GROUP_ID] = defaultRemoteGroup
+	}
 
 	return config
 }

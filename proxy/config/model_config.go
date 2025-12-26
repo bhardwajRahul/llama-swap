@@ -2,6 +2,8 @@ package config
 
 import (
 	"errors"
+	"net"
+	"net/url"
 	"runtime"
 	"slices"
 	"strings"
@@ -75,6 +77,31 @@ func (m *ModelConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	*m = ModelConfig(defaults)
 	return nil
+}
+
+// IsRemoteModel returns true if the model is a remote model where
+// no local command is start/stopped to proxy the requests.
+func (m ModelConfig) IsRemoteModel() bool {
+	if m.Cmd != "" {
+		return false
+	}
+
+	u, err := url.Parse(m.Proxy)
+	if err != nil {
+		return false
+	}
+
+	host := u.Hostname()
+	if host == "localhost" {
+		return false
+	}
+
+	ip := net.ParseIP(host)
+	if ip != nil && ip.IsLoopback() {
+		return false
+	}
+
+	return true
 }
 
 func (m *ModelConfig) SanitizedCommand() ([]string, error) {

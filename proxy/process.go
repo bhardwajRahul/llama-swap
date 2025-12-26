@@ -96,6 +96,17 @@ func NewProcess(ID string, healthCheckTimeout int, config config.ModelConfig, pr
 	var reverseProxy *httputil.ReverseProxy
 	if proxyURL != nil {
 		reverseProxy = httputil.NewSingleHostReverseProxy(proxyURL)
+
+		if config.IsRemoteModel() && config.ApiKey != "" {
+			origDir := reverseProxy.Director
+			reverseProxy.Director = func(req *http.Request) {
+				origDir(req) // call the original first
+				req.Host = req.URL.Host
+				req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", config.ApiKey))
+				req.Header.Set("x-api-key", config.ApiKey)
+			}
+		}
+
 		reverseProxy.ModifyResponse = func(resp *http.Response) error {
 			// prevent nginx from buffering streaming responses (e.g., SSE)
 			if strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") {
@@ -220,6 +231,12 @@ func (p *Process) start() error {
 
 	if p.config.Proxy == "" {
 		return fmt.Errorf("can not start(), upstream proxy missing")
+	}
+
+	if p.config.IsRemoteModel() {
+		// nothing to start because it is a remote model
+		p.forceState(StateReady)
+		return nil
 	}
 
 	args, err := p.config.SanitizedCommand()
@@ -369,6 +386,9 @@ func (p *Process) start() error {
 // Stop will wait for inflight requests to complete before stopping the process.
 func (p *Process) Stop() {
 	if !isValidTransition(p.CurrentState(), StateStopping) {
+		if p.CurrentState() != StateStopped { // it never started, avoid log spew
+			p.proxyLogger.Debugf("<%s> Stop() invalid transition from %s to %s", p.ID, p.CurrentState(), StateStopping)
+		}
 		return
 	}
 
@@ -381,7 +401,15 @@ func (p *Process) Stop() {
 // StopImmediately will transition the process to the stopping state and stop the process with a SIGTERM.
 // If the process does not stop within the specified timeout, it will be forcefully stopped with a SIGKILL.
 func (p *Process) StopImmediately() {
+	if p.config.IsRemoteModel() {
+		// nothing to stop because it is a remote model
+		return
+	}
+
 	if !isValidTransition(p.CurrentState(), StateStopping) {
+		if p.CurrentState() != StateStopped { // it never started, avoid log spew
+			p.proxyLogger.Debugf("<%s> Stop() invalid transition from %s to %s", p.ID, p.CurrentState(), StateStopping)
+		}
 		return
 	}
 
@@ -399,7 +427,14 @@ func (p *Process) StopImmediately() {
 // is in the state of starting, it will cancel it and shut it down. Once a process is in
 // the StateShutdown state, it can not be started again.
 func (p *Process) Shutdown() {
+	if p.config.IsRemoteModel() {
+		return
+	}
+
 	if !isValidTransition(p.CurrentState(), StateStopping) {
+		if p.CurrentState() != StateStopped { // it never started, avoid log spew
+			p.proxyLogger.Debugf("<%s> Stop() invalid transition from %s to %s", p.ID, p.CurrentState(), StateStopping)
+		}
 		return
 	}
 
@@ -411,6 +446,11 @@ func (p *Process) Shutdown() {
 // stopCommand will send a SIGTERM to the process and wait for it to exit.
 // If it does not exit within 5 seconds, it will send a SIGKILL.
 func (p *Process) stopCommand() {
+
+	if p.config.IsRemoteModel() {
+		return
+	}
+
 	stopStartTime := time.Now()
 	defer func() {
 		p.proxyLogger.Debugf("<%s> stopCommand took %v", p.ID, time.Since(stopStartTime))
@@ -505,7 +545,7 @@ func (p *Process) ProxyRequest(w http.ResponseWriter, r *http.Request) {
 	var srw *statusResponseWriter
 	swapCtx, cancelLoadCtx := context.WithCancel(r.Context())
 	// start the process on demand
-	if p.CurrentState() != StateReady {
+	if !p.config.IsRemoteModel() && p.CurrentState() != StateReady {
 		// start a goroutine to stream loading status messages into the response writer
 		// add a sync so the streaming client only runs when the goroutine has exited
 
